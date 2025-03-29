@@ -1,0 +1,773 @@
+# Code Map
+
+codemap/
+  go.mod
+  internal/
+    internal\analyzer/
+      internal\analyzer\stats.go
+    internal\config/
+      internal\config\config.go
+    internal\mapper/
+      internal\mapper\mapper.go
+    internal\scanner/
+      internal\scanner\scanner.go
+    internal\utils/
+      internal\utils\file_utils.go
+  main.go
+  readme.md
+
+# Source Code
+
+## internal\analyzer\stats.go
+```go
+package analyzer
+
+import (
+	"fmt"
+	"io"
+	"time"
+)
+
+type CodeStats struct {
+	StartTime      time.Time
+	FileCount      int
+	DirCount       int
+	CharCount      int
+	WordCount      int
+	TokenEstimate  int
+	PackagesCount  int
+	PackagesList   map[string]bool
+	FileExtensions map[string]int
+}
+
+func NewCodeStats() *CodeStats {
+	return &CodeStats{
+		StartTime:      time.Now(),
+		PackagesList:   make(map[string]bool),
+		FileExtensions: make(map[string]int),
+	}
+}
+
+func (s *CodeStats) AddPackage(packageName string) {
+	if !s.PackagesList[packageName] {
+		s.PackagesList[packageName] = true
+		s.PackagesCount++
+	}
+}
+
+func (s *CodeStats) AddFileExtension(ext string) {
+	s.FileExtensions[ext]++
+}
+
+func (s *CodeStats) IncrementFileCount() {
+	s.FileCount++
+}
+
+func (s *CodeStats) IncrementDirCount() {
+	s.DirCount++
+}
+
+func (s *CodeStats) AddChars(count int) {
+	s.CharCount += count
+}
+
+func (s *CodeStats) AddWords(count int) {
+	s.WordCount += count
+}
+
+func (s *CodeStats) CalculateTokens(chars int, tokensPerChar float64) {
+	s.TokenEstimate += int(float64(chars) * tokensPerChar)
+}
+
+func (s *CodeStats) PrintToConsole() {
+	duration := time.Since(s.StartTime)
+
+	fmt.Printf("\nStatistics:\n")
+	fmt.Printf("  - Execution time: %v\n", duration)
+	fmt.Printf("  - Total files: %d\n", s.FileCount)
+	fmt.Printf("  - Total directories: %d\n", s.DirCount)
+	fmt.Printf("  - Total packages: %d\n", s.PackagesCount)
+	fmt.Printf("  - Total character count: %d\n", s.CharCount)
+	fmt.Printf("  - Total word count: %d\n", s.WordCount)
+	fmt.Printf("  - Estimated token count: %d\n", s.TokenEstimate)
+
+	fmt.Printf("\nFile Extensions:\n")
+	for ext, count := range s.FileExtensions {
+		if count > 0 {
+			fmt.Printf("  - %s: %d files\n", ext, count)
+		}
+	}
+}
+
+func (s *CodeStats) WriteToFile(file io.Writer) {
+	fmt.Fprintf(file, "## Statistics\n\n")
+	fmt.Fprintf(file, "- Total files: %d\n", s.FileCount)
+	fmt.Fprintf(file, "- Total directories: %d\n", s.DirCount)
+	fmt.Fprintf(file, "- Total packages: %d\n", s.PackagesCount)
+	fmt.Fprintf(file, "- Total character count: %d\n", s.CharCount)
+	fmt.Fprintf(file, "- Total word count: %d\n", s.WordCount)
+	fmt.Fprintf(file, "- Estimated token count: %d\n", s.TokenEstimate)
+
+	fmt.Fprintf(file, "\n### File Extensions\n\n")
+	for ext, count := range s.FileExtensions {
+		if count > 0 {
+			fmt.Fprintf(file, "- %s: %d files\n", ext, count)
+		}
+	}
+}
+
+```
+
+## internal\config\config.go
+```go
+package config
+
+type Config struct {
+	MaxFileSizeBytes      int
+	OutputFileName        string
+	WarningFilesThreshold int
+	WarningDirsThreshold  int
+	TokensPerChar         float64
+	ExcludeDirs           map[string]bool
+	ExcludeExtensions     map[string]bool
+	FileExtensionMap      map[string]FileExtensionInfo
+}
+
+type FileExtensionInfo struct {
+	IsCode   bool
+	Language string
+}
+
+func NewDefaultConfig() *Config {
+	cfg := &Config{
+		MaxFileSizeBytes:      1024 * 1024,
+		OutputFileName:        "codebase_map.txt",
+		WarningFilesThreshold: 1000,
+		WarningDirsThreshold:  100,
+		TokensPerChar:         0.25,
+		ExcludeDirs: map[string]bool{
+			".git":         true,
+			"node_modules": true,
+			"vendor":       true,
+			"dist":         true,
+			"build":        true,
+		},
+		ExcludeExtensions: map[string]bool{
+			".exe":   true,
+			".dll":   true,
+			".so":    true,
+			".dylib": true,
+			".bin":   true,
+			".obj":   true,
+			".o":     true,
+			".a":     true,
+			".lib":   true,
+			".pyc":   true,
+			".pyo":   true,
+			".class": true,
+		},
+		FileExtensionMap: make(map[string]FileExtensionInfo),
+	}
+
+	initializeExtensionMap(cfg)
+	return cfg
+}
+
+func initializeExtensionMap(cfg *Config) {
+	extMap := map[string]FileExtensionInfo{
+		".go":     {true, "go"},
+		".js":     {true, "javascript"},
+		".jsx":    {true, "jsx"},
+		".ts":     {true, "typescript"},
+		".tsx":    {true, "tsx"},
+		".py":     {true, "python"},
+		".java":   {true, "java"},
+		".c":      {true, "c"},
+		".cpp":    {true, "cpp"},
+		".cc":     {true, "cpp"},
+		".h":      {true, "c"},
+		".hpp":    {true, "cpp"},
+		".cs":     {true, "csharp"},
+		".rb":     {true, "ruby"},
+		".php":    {true, "php"},
+		".html":   {true, "html"},
+		".css":    {true, "css"},
+		".scss":   {true, "scss"},
+		".sql":    {true, "sql"},
+		".swift":  {true, "swift"},
+		".kt":     {true, "kotlin"},
+		".rs":     {true, "rust"},
+		".sh":     {true, "bash"},
+		".bash":   {true, "bash"},
+		".pl":     {true, "perl"},
+		".json":   {true, "json"},
+		".yaml":   {true, "yaml"},
+		".yml":    {true, "yaml"},
+		".xml":    {true, "xml"},
+		".md":     {true, "markdown"},
+		".txt":    {true, "plaintext"},
+		".toml":   {true, "toml"},
+		".ini":    {true, "ini"},
+		".cfg":    {true, "ini"},
+		".proto":  {true, "protobuf"},
+		".dart":   {true, "dart"},
+		".lua":    {true, "lua"},
+		".ex":     {true, "elixir"},
+		".exs":    {true, "elixir"},
+		".erl":    {true, "erlang"},
+		".hs":     {true, "haskell"},
+		".ml":     {true, "ocaml"},
+		".scala":  {true, "scala"},
+		".clj":    {true, "clojure"},
+		".fs":     {true, "fsharp"},
+		".r":      {true, "r"},
+		".groovy": {true, "groovy"},
+		".jl":     {true, "julia"},
+		".d":      {true, "d"},
+		".zig":    {true, "zig"},
+		".odin":   {true, "odin"},
+		".nim":    {true, "nim"},
+		".v":      {true, "v"},
+		".asm":    {true, "assembly"},
+		".s":      {true, "assembly"},
+		".elm":    {true, "elm"},
+		".f":      {true, "fortran"},
+		".f90":    {true, "fortran"},
+		".f95":    {true, "fortran"},
+		".mat":    {true, "matlab"},
+		".m":      {true, "objective-c"},
+		".mm":     {true, "objective-cpp"},
+		".pas":    {true, "pascal"},
+		".pp":     {true, "pascal"},
+		".cob":    {true, "cobol"},
+		".lisp":   {true, "lisp"},
+		".cl":     {true, "lisp"},
+		".bas":    {true, "basic"},
+	}
+
+	cfg.FileExtensionMap = extMap
+}
+
+```
+
+## internal\mapper\mapper.go
+```go
+package mapper
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/267H/codemap/internal/analyzer"
+	"github.com/267H/codemap/internal/config"
+	"github.com/267H/codemap/internal/utils"
+)
+
+type CodeMapper struct {
+	config *config.Config
+	stats  *analyzer.CodeStats
+}
+
+func NewCodeMapper(cfg *config.Config, stats *analyzer.CodeStats) *CodeMapper {
+	return &CodeMapper{
+		config: cfg,
+		stats:  stats,
+	}
+}
+
+func (m *CodeMapper) MapCodebase(rootDir string, outputFile io.Writer) error {
+	outputFilePath, _ := filepath.Abs(m.config.OutputFileName)
+
+	fmt.Fprintln(outputFile, "# Code Map\n")
+
+	type stackItem struct {
+		path  string
+		depth int
+	}
+
+	stack := []stackItem{{path: rootDir, depth: 0}}
+	visited := make(map[string]bool)
+
+	for len(stack) > 0 {
+		current := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		if visited[current.path] {
+			continue
+		}
+		visited[current.path] = true
+
+		info, err := os.Stat(current.path)
+		if err != nil {
+			continue
+		}
+
+		absPath, _ := filepath.Abs(current.path)
+		if absPath == outputFilePath {
+			continue
+		}
+
+		relPath, err := filepath.Rel(rootDir, current.path)
+		if err != nil {
+			relPath = current.path
+		}
+		if relPath == "." {
+			relPath = filepath.Base(rootDir)
+		}
+
+		indent := strings.Repeat("  ", current.depth)
+
+		if info.IsDir() {
+			if m.config.ExcludeDirs[info.Name()] {
+				continue
+			}
+
+			m.stats.IncrementDirCount()
+
+			fmt.Fprintf(outputFile, "%s%s/\n", indent, relPath)
+
+			entries, err := os.ReadDir(current.path)
+			if err != nil {
+				continue
+			}
+
+			for i := len(entries) - 1; i >= 0; i-- {
+				entry := entries[i]
+				entryPath := filepath.Join(current.path, entry.Name())
+
+				if strings.HasPrefix(entry.Name(), ".") {
+					continue
+				}
+
+				stack = append(stack, stackItem{
+					path:  entryPath,
+					depth: current.depth + 1,
+				})
+			}
+		} else {
+			ext := filepath.Ext(info.Name())
+			if m.config.ExcludeExtensions[ext] {
+				continue
+			}
+
+			m.stats.IncrementFileCount()
+			m.stats.AddFileExtension(ext)
+
+			fmt.Fprintf(outputFile, "%s%s\n", indent, relPath)
+		}
+	}
+
+	fmt.Fprintln(outputFile, "\n# Source Code\n")
+
+	visited = make(map[string]bool)
+	stack = []stackItem{{path: rootDir, depth: 0}}
+
+	for len(stack) > 0 {
+		current := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		if visited[current.path] {
+			continue
+		}
+		visited[current.path] = true
+
+		info, err := os.Stat(current.path)
+		if err != nil {
+			continue
+		}
+
+		absPath, _ := filepath.Abs(current.path)
+		if absPath == outputFilePath {
+			continue
+		}
+
+		relPath, err := filepath.Rel(rootDir, current.path)
+		if err != nil {
+			relPath = current.path
+		}
+		if relPath == "." {
+			relPath = filepath.Base(rootDir)
+		}
+
+		if info.IsDir() {
+			if m.config.ExcludeDirs[info.Name()] {
+				continue
+			}
+
+			entries, err := os.ReadDir(current.path)
+			if err != nil {
+				continue
+			}
+
+			for i := len(entries) - 1; i >= 0; i-- {
+				entry := entries[i]
+				entryPath := filepath.Join(current.path, entry.Name())
+
+				if strings.HasPrefix(entry.Name(), ".") {
+					continue
+				}
+
+				stack = append(stack, stackItem{
+					path:  entryPath,
+					depth: current.depth + 1,
+				})
+			}
+		} else {
+			ext := filepath.Ext(info.Name())
+			if m.config.ExcludeExtensions[ext] {
+				continue
+			}
+
+			if info.Size() > int64(m.config.MaxFileSizeBytes) {
+				continue
+			}
+
+			extInfo, isCodeFile := m.config.FileExtensionMap[ext]
+			if !isCodeFile || !extInfo.IsCode {
+				continue
+			}
+
+			content, err := os.ReadFile(current.path)
+			if err != nil {
+				continue
+			}
+
+			contentStr := string(content)
+
+			m.stats.AddChars(len(contentStr))
+			m.stats.AddWords(utils.CountWords(contentStr))
+			m.stats.CalculateTokens(len(contentStr), m.config.TokensPerChar)
+
+			if filepath.Ext(info.Name()) == ".go" {
+				m.extractGoPackages(contentStr)
+			}
+
+			fmt.Fprintf(outputFile, "## %s\n", relPath)
+			fmt.Fprintf(outputFile, "```%s\n%s\n```\n\n", extInfo.Language, contentStr)
+		}
+	}
+
+	return nil
+}
+
+func (m *CodeMapper) extractGoPackages(content string) {
+	re := regexp.MustCompile(`package\s+([a-zA-Z0-9_]+)`)
+	matches := re.FindStringSubmatch(content)
+
+	if len(matches) > 1 {
+		packageName := matches[1]
+		m.stats.AddPackage(packageName)
+	}
+}
+
+```
+
+## internal\scanner\scanner.go
+```go
+package scanner
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/267H/codemap/internal/config"
+)
+
+type Scanner struct {
+	config *config.Config
+}
+
+func NewScanner(cfg *config.Config) *Scanner {
+	return &Scanner{
+		config: cfg,
+	}
+}
+
+func (s *Scanner) QuickSizeCheck(rootDir string) (int, int) {
+	fileCount := 0
+	dirCount := 0
+
+	type stackItem struct {
+		path string
+	}
+
+	stack := []stackItem{{path: rootDir}}
+	visited := make(map[string]bool)
+
+	for len(stack) > 0 {
+		current := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		if visited[current.path] {
+			continue
+		}
+		visited[current.path] = true
+
+		info, err := os.Stat(current.path)
+		if err != nil {
+			continue
+		}
+
+		if info.IsDir() {
+			if s.config.ExcludeDirs[info.Name()] {
+				continue
+			}
+
+			dirCount++
+
+			entries, err := os.ReadDir(current.path)
+			if err != nil {
+				continue
+			}
+
+			for _, entry := range entries {
+				entryPath := filepath.Join(current.path, entry.Name())
+
+				if strings.HasPrefix(entry.Name(), ".") && entry.IsDir() {
+					continue
+				}
+
+				stack = append(stack, stackItem{path: entryPath})
+			}
+		} else {
+			ext := filepath.Ext(info.Name())
+			if s.config.ExcludeExtensions[ext] {
+				continue
+			}
+
+			fileCount++
+		}
+	}
+
+	return fileCount, dirCount
+}
+
+```
+
+## internal\utils\file_utils.go
+```go
+package utils
+
+import (
+	"strings"
+)
+
+func CountWords(s string) int {
+	fields := strings.Fields(s)
+	return len(fields)
+}
+
+```
+
+## main.go
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+
+	"github.com/267H/codemap/internal/analyzer"
+	"github.com/267H/codemap/internal/config"
+	"github.com/267H/codemap/internal/mapper"
+	"github.com/267H/codemap/internal/scanner"
+)
+
+func main() {
+	cfg := config.NewDefaultConfig()
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error getting current directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	scan := scanner.NewScanner(cfg)
+	fileCount, dirCount := scan.QuickSizeCheck(currentDir)
+
+	if fileCount > cfg.WarningFilesThreshold || dirCount > cfg.WarningDirsThreshold {
+		fmt.Printf("\nWARNING: This directory contains %d files in %d directories.\n", fileCount, dirCount)
+		fmt.Printf("This appears to be a large codebase which might generate a very large output file.\n")
+
+		if !promptYesNo("Do you want to proceed?") {
+			fmt.Println("Operation cancelled by user.")
+			os.Exit(0)
+		}
+	}
+
+	var excludedExts []string
+	for ext := range cfg.ExcludeExtensions {
+		excludedExts = append(excludedExts, ext)
+	}
+	fmt.Printf("\nCurrently excluded file extensions: %s\n", strings.Join(excludedExts, ", "))
+
+	if promptYesNo("Would you like to exclude additional file extensions?") {
+		fmt.Print("Enter extensions to exclude (comma separated, e.g. .log,.tmp,.bak): ")
+		reader := bufio.NewReader(os.Stdin)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+
+		if input != "" {
+			extensions := strings.Split(input, ",")
+			for _, ext := range extensions {
+				ext = strings.TrimSpace(ext)
+				if !strings.HasPrefix(ext, ".") {
+					ext = "." + ext
+				}
+				cfg.ExcludeExtensions[ext] = true
+			}
+
+			fmt.Println("Excluded extensions:")
+			for ext := range cfg.ExcludeExtensions {
+				fmt.Printf("  - %s\n", ext)
+			}
+		}
+	}
+
+	stats := analyzer.NewCodeStats()
+	codeMapper := mapper.NewCodeMapper(cfg, stats)
+
+	file, err := os.Create(cfg.OutputFileName)
+	if err != nil {
+		fmt.Printf("Error creating output file: %v\n", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+
+	fmt.Printf("\nMapping codebase at %s...\n", currentDir)
+	err = codeMapper.MapCodebase(currentDir, file)
+	if err != nil {
+		fmt.Printf("Error mapping codebase: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("\nCodebase mapping completed!")
+	stats.PrintToConsole()
+
+	fmt.Println("\nPress Enter to exit or type 'rerun' to start again: ")
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(strings.ToLower(input))
+
+	if input == "rerun" {
+		executable, _ := os.Executable()
+		cmd := exec.Command(executable)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err := cmd.Start()
+		if err != nil {
+			fmt.Printf("Error restarting: %v\n", err)
+		}
+		os.Exit(0)
+	}
+}
+
+func promptYesNo(question string) bool {
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		fmt.Printf("%s (y/n): ", question)
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(strings.ToLower(response))
+
+		if response == "y" || response == "yes" {
+			return true
+		} else if response == "n" || response == "no" {
+			return false
+		}
+
+		fmt.Println("Please answer with 'y' or 'n'")
+	}
+}
+
+```
+
+## readme.md
+```markdown
+# CodeMap
+
+A lightweight Go tool that maps your entire codebase into a single file optimized for Large Language Models (LLMs).
+
+## Features
+
+- Creates a consolidated view of your codebase structure and contents
+- Automatically excludes common non-code directories and binary files
+- Configurable file extension filtering
+- Outputs code with proper language syntax highlighting
+- Calculates statistics (token count, character count, word count)
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/267H/codemap.git
+cd codemap
+
+# Build the tool
+go build
+
+# Run in any codebase
+./codemap
+Usage
+Simply run the executable in the directory you want to map:
+bashCopy# Navigate to your project
+cd /path/to/your/project
+
+# Run CodeMap
+/path/to/codemap
+
+```
+
+The tool will:
+
+Scan your codebase
+Prompt for confirmation if the codebase is large
+Allow you to exclude additional file extensions
+Generate a codebase_map.txt file in the current directory
+
+Example Output
+
+```bash
+Code Map
+
+project_name/
+  src/
+    main.go
+    util/
+      helper.go
+  README.md
+  go.mod
+
+# Source Code
+
+## src/main.go
+```go
+package main
+
+func main() {
+    // ...
+}
+util/helper.go
+goCopypackage util
+
+func Helper() {
+    // ...
+}
+
+```
+
+By default, CodeMap:
+- Excludes common directories (.git, node_modules, vendor, etc.)
+- Excludes binary files (.exe, .dll, .so, etc.)
+- Skips files larger than 1MB
+```
+

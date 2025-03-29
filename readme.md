@@ -29,6 +29,9 @@ cd /path/to/your/project
 
 # Run CodeMap
 /path/to/codemap
+
+```
+
 The tool will:
 
 Scan your codebase
@@ -37,7 +40,9 @@ Allow you to exclude additional file extensions
 Generate a codebase_map.txt file in the current directory
 
 Example Output
-Copy# Code Map
+
+```bash
+Code Map
 
 project_name/
   src/
@@ -62,8 +67,8 @@ goCopypackage util
 func Helper() {
     // ...
 }
-Copy
-## Configuration
+
+```
 
 By default, CodeMap:
 - Excludes common directories (.git, node_modules, vendor, etc.)

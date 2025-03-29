@@ -22,9 +22,11 @@ go build
 
 # Run in any codebase
 ./codemap
+
 Usage
 Simply run the executable in the directory you want to map:
-bashCopy# Navigate to your project
+
+Navigate to your project
 cd /path/to/your/project
 
 # Run CodeMap

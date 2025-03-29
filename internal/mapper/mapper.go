@@ -169,16 +169,22 @@ func (m *CodeMapper) MapCodebase(rootDir string, outputFile io.Writer) error {
 			}
 
 			if info.Size() > int64(m.config.MaxFileSizeBytes) {
+				fmt.Fprintf(outputFile, "## %s\n", relPath)
+				fmt.Fprintf(outputFile, "File too large to include (size: %d bytes, max: %d bytes)\n\n", info.Size(), m.config.MaxFileSizeBytes)
 				continue
 			}
 
 			extInfo, isCodeFile := m.config.FileExtensionMap[ext]
 			if !isCodeFile || !extInfo.IsCode {
+				fmt.Fprintf(outputFile, "## %s\n", relPath)
+				fmt.Fprintf(outputFile, "File skipped because extension %s is not registered as code\n\n", ext)
 				continue
 			}
 
 			content, err := os.ReadFile(current.path)
 			if err != nil {
+				fmt.Fprintf(outputFile, "## %s\n", relPath)
+				fmt.Fprintf(outputFile, "Error reading file: %v\n\n", err)
 				continue
 			}
 
@@ -186,7 +192,7 @@ func (m *CodeMapper) MapCodebase(rootDir string, outputFile io.Writer) error {
 
 			m.stats.AddChars(len(contentStr))
 			m.stats.AddWords(utils.CountWords(contentStr))
-			m.stats.CalculateTokens(len(contentStr), m.config.TokensPerChar)
+			m.stats.AddTokens(utils.EstimateTokens(contentStr))
 
 			if filepath.Ext(info.Name()) == ".go" {
 				m.extractGoPackages(contentStr)

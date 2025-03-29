@@ -53,6 +53,10 @@ func (s *CodeStats) AddWords(count int) {
 	s.WordCount += count
 }
 
+func (s *CodeStats) AddTokens(count int) {
+	s.TokenEstimate += count
+}
+
 func (s *CodeStats) CalculateTokens(chars int, tokensPerChar float64) {
 	s.TokenEstimate += int(float64(chars) * tokensPerChar)
 }

@@ -2,6 +2,7 @@
 
 codemap/
   go.mod
+  go.sum
   internal/
     internal\analyzer/
       internal\analyzer\stats.go
@@ -17,6 +18,12 @@ codemap/
   readme.md
 
 # Source Code
+
+## go.mod
+File skipped because extension .mod is not registered as code
+
+## go.sum
+File skipped because extension .sum is not registered as code
 
 ## internal\analyzer\stats.go
 ```go
@@ -73,6 +80,10 @@ func (s *CodeStats) AddChars(count int) {
 
 func (s *CodeStats) AddWords(count int) {
 	s.WordCount += count
+}
+
+func (s *CodeStats) AddTokens(count int) {
+	s.TokenEstimate += count
 }
 
 func (s *CodeStats) CalculateTokens(chars int, tokensPerChar float64) {
@@ -423,16 +434,22 @@ func (m *CodeMapper) MapCodebase(rootDir string, outputFile io.Writer) error {
 			}
 
 			if info.Size() > int64(m.config.MaxFileSizeBytes) {
+				fmt.Fprintf(outputFile, "## %s\n", relPath)
+				fmt.Fprintf(outputFile, "File too large to include (size: %d bytes, max: %d bytes)\n\n", info.Size(), m.config.MaxFileSizeBytes)
 				continue
 			}
 
 			extInfo, isCodeFile := m.config.FileExtensionMap[ext]
 			if !isCodeFile || !extInfo.IsCode {
+				fmt.Fprintf(outputFile, "## %s\n", relPath)
+				fmt.Fprintf(outputFile, "File skipped because extension %s is not registered as code\n\n", ext)
 				continue
 			}
 
 			content, err := os.ReadFile(current.path)
 			if err != nil {
+				fmt.Fprintf(outputFile, "## %s\n", relPath)
+				fmt.Fprintf(outputFile, "Error reading file: %v\n\n", err)
 				continue
 			}
 
@@ -440,7 +457,7 @@ func (m *CodeMapper) MapCodebase(rootDir string, outputFile io.Writer) error {
 
 			m.stats.AddChars(len(contentStr))
 			m.stats.AddWords(utils.CountWords(contentStr))
-			m.stats.CalculateTokens(len(contentStr), m.config.TokensPerChar)
+			m.stats.AddTokens(utils.EstimateTokens(contentStr))
 
 			if filepath.Ext(info.Name()) == ".go" {
 				m.extractGoPackages(contentStr)
@@ -556,6 +573,37 @@ package utils
 import (
 	"strings"
 )
+
+func EstimateTokens(text string) int {
+	charCount := len(text)
+
+	whitespaceCount := 0
+	newlineCount := 0
+	symbolCount := 0
+
+	for _, char := range text {
+		if strings.ContainsRune(" \t\r", char) {
+			whitespaceCount++
+		} else if char == '\n' {
+			newlineCount++
+		} else if !isAlphaNumeric(char) {
+			symbolCount++
+		}
+	}
+
+	alphaNumCount := charCount - whitespaceCount - newlineCount - symbolCount
+
+	wordTokens := int(float64(alphaNumCount) * 0.16)
+	whitespaceTokens := whitespaceCount / 4
+	newlineTokens := newlineCount
+	symbolTokens := symbolCount
+
+	return wordTokens + whitespaceTokens + newlineTokens + symbolTokens
+}
+
+func isAlphaNumeric(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_'
+}
 
 func CountWords(s string) int {
 	fields := strings.Fields(s)
@@ -717,9 +765,11 @@ go build
 
 # Run in any codebase
 ./codemap
+
 Usage
 Simply run the executable in the directory you want to map:
-bashCopy# Navigate to your project
+
+Navigate to your project
 cd /path/to/your/project
 
 # Run CodeMap
